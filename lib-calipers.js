@@ -1,0 +1,149 @@
+class TeletypeObject {
+    constructor(etty, ectty, ectty_cur){
+        this.tty = etty;
+        this.ctty = ectty;
+        this.ctty_cur = ectty_cur;
+
+        this.curchar = "\u2588";
+        this.tty_pip = ["", "", ""];
+        this.doscrolls = true;
+        this.hide_stack = [];
+        this.curoff = 0;
+
+
+    }
+    clear(){
+        this.tty_pip = ["", "", ""];
+        this.deadrefresh();
+        this.scroll();
+    }
+    scroll(){
+        if(this.doscrolls){
+            this.ctty.scrollIntoView({behavior: 'instant', block: 'end'});
+        }
+    }
+    deadrefresh(){
+        this.ctty.textContent = this.generateCttyString(this.tty.textContent);
+    }
+    generateCttyString(s){
+        /*let out = s;
+        out = out.slice(0,out.length+curoff);
+        return out;*/
+        return s.slice(0,s.length+this.curoff);
+    }
+    set_hide(b){
+        this.tty.hidden = b;
+        this.ctty.hidden = b;
+        this.ctty_cur.hidden = b;
+    }
+    set_hide_push(b){
+        this.hide_stack.push(this.tty.hidden);
+        this.set_hide(b);
+    }
+    set_hide_pop(){
+        this.set_hide(this.hide_stack.pop());
+    }
+    out_sw([_pre,_in,_post]){
+        this.tty_pip[0] += _pre;
+        this.tty_pip[1] += _in;
+        this.tty_pip[2] += _post;
+        this.refresh();
+    }
+    set_sw(pip){
+        this.tty_pip = pip;
+    }
+    refresh(){
+        this.tty.textContent = this.tty_pip[0] + this.tty_pip[1] + this.tty_pip[2];
+        this.ctty.textContent = this.generateCttyString(this.tty.textContent);
+        this.ctty_cur.textContent = this.curchar;
+        //this.deadrefresh();
+        this.scroll();
+    }
+}
+
+var Teletype = new TeletypeObject(document.getElementById("tty"),document.getElementById("ctty"),document.getElementById("ctty_cur"));
+Teletype.clear();
+
+class GraphicsObject {
+    constructor(canvas_element){
+        this.canvas = canvas_element;
+        this.ctx = canvas_element.getContext("2d");
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+        this.rem_font = "16px monospace";
+        this.isVisible = true;
+        this.visibility_stack = [];
+    }
+    autoresize(){
+        if(self.innerWidth === this.width && self.innerHeight === this.height){
+            return;
+        }
+        this.width = this.canvas.width = self.innerWidth;
+        this.height = this.canvas.height = self.innerHeight;
+    }
+    setVisibility(b){
+        this.isVisible = !(this.canvas.hidden = !b);
+    }
+    setVisibility_push(b){
+        this.visibility_stack.push(this.isVisible);
+        this.setVisibility(b);
+    }
+    setVisibility_pop(){
+        this.setVisibility(this.visibility_stack.pop());
+    }
+    clear(){
+        this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+    }
+    whv(){
+        return [this.width, this.height];
+    }
+    fill([r,g,b]){
+        this.ctx.fillStyle = "rgb("+r+" "+g+" "+b+")";
+    }
+    background(){
+        this.ctx.fillRect(0,0,this.width,this.height);
+    }
+    font(s){
+        this.remember_font = s;
+        this.ctx.font = s;
+    }
+    text(s,[x,y]){
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'top';
+        this.ctx.font = this.remember_font;
+        this.ctx.fillText(s,x,y);
+    }
+    rect([x,y],[w,h]){
+        this.ctx.fillRect(x,y,w,h);
+    }
+    line([x0,y0],[x1,y1]){
+        this.ctx.beginPath();
+        this.ctx.moveTo(x0,y0);
+        this.ctx.lineTo(x1,y1);
+        this.ctx.stroke();
+    }
+    stroke([r,g,b]){
+        this.ctx.strokeStyle = "rgb("+r+" "+g+" "+b+")";
+    }
+    strokeWeight(x){
+        this.ctx.lineWidth = x;
+    }
+    circle([x,y],r){
+        this.ctx.beginPath();
+        this.ctx.ellipse(x, y, r, r, 0, 0, Math.PI*2);
+        this.ctx.fill();
+    }
+}
+
+var Graphics = new GraphicsObject(document.getElementById("canvas_element"));
+
+class DeltaTime {
+    static last = Date.now();
+    static framerate; //just so that you can keep track of it easily, it can't be changed by any method right now
+    static Update(){
+        this.last = Date.now();
+    }
+    static GetDeltaTime(){
+        return Date.now() - this.last;
+    }
+}
