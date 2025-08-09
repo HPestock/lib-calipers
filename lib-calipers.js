@@ -1,3 +1,5 @@
+//This file is part of the 08/08/2025 branch of this project. 
+
 class TeletypeObject {
     constructor(etty, ectty, ectty_cur){
         this.tty = etty;
@@ -11,6 +13,9 @@ class TeletypeObject {
         this.curoff = 0;
 
 
+    }
+    set_curoff(n){
+        this.curoff=n;
     }
     clear(){
         this.tty_pip = ["", "", ""];
@@ -51,6 +56,19 @@ class TeletypeObject {
     }
     set_sw(pip){
         this.tty_pip = pip;
+        this.refresh();
+    }
+    set_pre(s){
+        this.tty_pip[0] = s;
+        this.refresh();
+    }
+    set_in(s){
+        this.tty_pip[1] = s;
+        this.refresh();
+    }
+    set_post(s){
+        this.tty_pip[2] = s;
+        this.refresh();
     }
     refresh(){
         this.tty.textContent = this.tty_pip[0] + this.tty_pip[1] + this.tty_pip[2];
@@ -145,5 +163,113 @@ class DeltaTime {
     }
     static GetDeltaTime(){
         return Date.now() - this.last;
+    }
+}
+
+class Keyboard {
+    static keybuffer = [];
+    static wasbs = 0;
+    static keybuffer_backlog;
+    static kbpush(e){
+        this.keybuffer.push(e.key);
+    }
+    static flush(KeyHandler){ //ex: str += Keyboard.flush((s) => Tools.StdKeyHandler((specstr) => "", s));
+        let out = "";
+        this.keybuffer_backlog = [];
+        for(let i=0;i<this.keybuffer.length;i++){
+            out += KeyHandler(this.keybuffer[i]);
+        }
+        this.keybuffer = [...this.keybuffer_backlog];
+        return out;
+    }
+    static stdflush(){
+        let out = "";
+        this.keybuffer_backlog = [];
+        for(let i=0;i<this.keybuffer.length;i++){
+            out += Tools.StdKeyHandler((specstr) => "", this.keybuffer[i]);
+        }
+        this.keybuffer = [...this.keybuffer_backlog];
+        return out;
+    }
+}
+
+class Mouse {
+
+}
+
+document.addEventListener("keydown", (event) => {
+event.preventDefault();
+    //if(isMobile){
+          //cout("[dbg]: keydown\n");
+      //}
+    //keybuffer.push(event.key);
+    Keyboard.kbpush(event);
+    //alert(event.key);
+    Keyboard.wasbs = Math.max(0, Keyboard.wasbs + 1);
+});
+
+document.addEventListener("keyup", (event) => {
+if(Keyboard.wasbs===0){
+        //keybuffer.push(event.key);alert("keypress:"+event.key);
+        Keyboard.kbpush(event);
+    }else{
+        Keyboard.wasbs--;
+    }
+});
+
+class Tools {
+    static StdKeyHandler(SpecialKeyCallback, InputStream){
+        if(InputStream.length === 1){
+            return InputStream;
+        }
+        switch(InputStream){
+            case "Tab":
+                return "\t";
+            case "Enter":
+                return "\n";
+            default:
+                return SpecialKeyCallback(InputStream);
+        }
+    }
+    static PromptStreamKeyHandler(callback, s){
+
+    }
+    static clamp(min, x, max){
+        return Math.max(min, Math.min(max, x));
+    }
+}
+
+class PromptStream {
+    constructor(){
+        this.file = "";
+        this.curoff = 0; //- for left, + for right (towards EOF)
+        this.backspacequeue = 0;
+        this.curoffchange = 0;
+    }
+    Update(){
+        this.file = this.file.slice(0,this.file.length+this.curoff) + Keyboard.flush((str) => Tools.StdKeyHandler((spec) => this.kbfcallback(spec), str)) + this.file.slice(this.file.length+this.curoff,this.file.length);
+        this.file = this.file.slice(0,Math.max(0,this.file.length+this.curoff-this.backspacequeue)) + this.file.slice(Math.max(0,this.file.length+this.curoff),this.file.length);
+        this.backspacequeue = 0;
+        this.curoff = Tools.clamp(-this.file.length,this.curoff+this.curoffchange,0);
+        this.curoffchange = 0;
+    }
+    kbfcallback(key){
+        switch(key){
+            case "Backspace":
+                this.backspacequeue++;
+                return "";
+            case "ArrowLeft":
+                this.curoffchange--;
+                return "";
+            case "ArrowRight":
+                this.curoffchange++;
+                return "";
+            case "ArrowDown":
+                return "";
+            case "ArrowUp":
+                return "";
+            default:
+                return "";
+        }
     }
 }
