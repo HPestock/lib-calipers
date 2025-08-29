@@ -245,6 +245,13 @@ class PromptStream {
         this.curoff = 0; //- for left, + for right (towards EOF)
         this.backspacequeue = 0;
         this.curoffchange = 0;
+        this.callback = (keystr) => {}; //THIS DOES NOT GET RESET !!! !!!
+    }
+    ResetFile(){
+        this.file = "";
+        this.curoff = 0; //- for left, + for right (towards EOF)
+        this.backspacequeue = 0;
+        this.curoffchange = 0;
     }
     Update(){
         this.file = this.file.slice(0,this.file.length+this.curoff) + Keyboard.flush((str) => Tools.StdKeyHandler((spec) => this.kbfcallback(spec), str)) + this.file.slice(this.file.length+this.curoff,this.file.length);
@@ -252,6 +259,9 @@ class PromptStream {
         this.backspacequeue = 0;
         this.curoff = Tools.clamp(-this.file.length,this.curoff+this.curoffchange,0);
         this.curoffchange = 0;
+    }
+    SetSpecialHandleCallback(callback){
+        this.callback = callback;
     }
     kbfcallback(key){
         switch(key){
@@ -269,6 +279,7 @@ class PromptStream {
             case "ArrowUp":
                 return "";
             default:
+                this.callback(key);
                 return "";
         }
     }
