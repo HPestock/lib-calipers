@@ -12,7 +12,7 @@ class TeletypeObject {
         this.hide_stack = [];
         this.curoff = 0;
 
-
+        this.remember_font = this.tty.style.fontFamily;
     }
     set_curoff(n){
         this.curoff=n;
@@ -76,6 +76,15 @@ class TeletypeObject {
         this.ctty_cur.textContent = this.curchar;
         //this.deadrefresh();
         this.scroll();
+    }
+    out(s){
+        this.out_sw(["",s,""]);
+    }
+    set_font(s){
+        this.tty.style.fontFamily = s;
+        this.ctty.style.fontFamily = s;
+        this.ctty_cur.style.fontFamily = s;
+        this.remember_font = s;
     }
 }
 
