@@ -24,7 +24,7 @@ class TeletypeObject {
     }
     scroll(){
         if(this.doscrolls){
-            this.ctty.scrollIntoView({behavior: 'instant', block: 'end'});
+            this.ctty_cur.scrollIntoView({behavior: 'instant', block: 'end'});
         }
     }
     deadrefresh(){
