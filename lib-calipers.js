@@ -16,6 +16,8 @@ class TeletypeObject {
 
         this.ghost = 0;
         this.ghoststack = [];
+
+        this.redirectdelete = false;
     }
     set_curoff(n){
         this.curoff=n;
@@ -307,7 +309,11 @@ class PromptStream {
                 this.backspacequeue++;
                 return "";
             case "Delete":
-                this.deletequeue++;
+                if(this.redirectdelete){
+                    this.backspacequeue++;
+                }else{
+                    this.deletequeue++;
+                }
                 return "";
             case "ArrowLeft":
                 this.curoffchange--;
