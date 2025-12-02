@@ -13,6 +13,9 @@ class TeletypeObject {
         this.curoff = 0;
 
         this.remember_font = this.tty.style.fontFamily;
+
+        this.ghost = 0;
+        this.ghoststack = [];
     }
     set_curoff(n){
         this.curoff=n;
@@ -35,6 +38,27 @@ class TeletypeObject {
         out = out.slice(0,out.length+curoff);
         return out;*/
         return s.slice(0,s.length+this.curoff);
+    }
+    ghoststr(){
+        let out = "";
+        for(let i=0;i<this.ghost;i++){
+            out+="\n\u3164";
+        }
+        return out;
+    }
+    set_ghost(n){
+        this.ghost=n;
+    }
+    push_ghost(n){
+        this.ghoststack.push(this.ghost);
+        this.ghost=n;
+    }
+    pop_ghost(){
+        if(this.ghoststack.length === 0){
+            // error? nah. 
+        }else{
+            this.ghost = this.ghoststack.pop();
+        }
     }
     set_hide(b){
         this.tty.hidden = b;
@@ -73,7 +97,7 @@ class TeletypeObject {
     refresh(){
         this.tty.textContent = this.tty_pip[0] + this.tty_pip[1] + this.tty_pip[2];
         this.ctty.textContent = this.generateCttyString(this.tty.textContent);
-        this.ctty_cur.textContent = this.curchar;
+        this.ctty_cur.textContent = this.curchar+this.ghoststr();
         //this.deadrefresh();
         this.scroll();
     }
@@ -180,9 +204,10 @@ class Keyboard {
     static wasbs = 0;
     static keybuffer_backlog;
     static kbpush(e){
+	//console.log(e.key);
         this.keybuffer.push(e.key);
     }
-    static flush(KeyHandler){ //ex: str += Keyboard.flush((s) => Tools.StdKeyHandler((specstr) => "", s));
+    static flush(KeyHandler){ //ex: str += Keyboard.flush((s) => LCTools.StdKeyHandler((specstr) => "", s));
         let out = "";
         this.keybuffer_backlog = [];
         for(let i=0;i<this.keybuffer.length;i++){
@@ -195,7 +220,7 @@ class Keyboard {
         let out = "";
         this.keybuffer_backlog = [];
         for(let i=0;i<this.keybuffer.length;i++){
-            out += Tools.StdKeyHandler((specstr) => "", this.keybuffer[i]);
+            out += LCTools.StdKeyHandler((specstr) => "", this.keybuffer[i]);
         }
         this.keybuffer = [...this.keybuffer_backlog];
         return out;
@@ -226,7 +251,7 @@ if(Keyboard.wasbs===0){
     }
 });
 
-class Tools {
+class LCTools {
     static StdKeyHandler(SpecialKeyCallback, InputStream){
         if(InputStream.length === 1){
             return InputStream;
@@ -253,6 +278,7 @@ class PromptStream {
         this.file = "";
         this.curoff = 0; //- for left, + for right (towards EOF)
         this.backspacequeue = 0;
+        this.deletequeue = 0;
         this.curoffchange = 0;
         this.callback = (keystr) => {}; //THIS DOES NOT GET RESET !!! !!!
     }
@@ -263,10 +289,13 @@ class PromptStream {
         this.curoffchange = 0;
     }
     Update(){
-        this.file = this.file.slice(0,this.file.length+this.curoff) + Keyboard.flush((str) => Tools.StdKeyHandler((spec) => this.kbfcallback(spec), str)) + this.file.slice(this.file.length+this.curoff,this.file.length);
-        this.file = this.file.slice(0,Math.max(0,this.file.length+this.curoff-this.backspacequeue)) + this.file.slice(Math.max(0,this.file.length+this.curoff),this.file.length);
+        let befcuroff = this.curoff;
+        this.file = this.file.slice(0,this.file.length+befcuroff) + Keyboard.flush((str) => LCTools.StdKeyHandler((spec) => this.kbfcallback(spec), str)) + this.file.slice(this.file.length+befcuroff,this.file.length);
+        this.file = this.file.slice(0,Math.max(0,this.file.length+befcuroff-this.backspacequeue)) + this.file.slice(Math.max(0,this.file.length+befcuroff),this.file.length);
+        this.file = this.file.slice(0,Math.max(0,this.file.length+befcuroff)) + this.file.slice(Math.max(0,this.file.length+befcuroff+this.deletequeue),this.file.length);
         this.backspacequeue = 0;
-        this.curoff = Tools.clamp(-this.file.length,this.curoff+this.curoffchange,0);
+        this.curoff = LCTools.clamp(-this.file.length,this.curoff+this.curoffchange+this.deletequeue,0);
+        this.deletequeue = 0;
         this.curoffchange = 0;
     }
     SetSpecialHandleCallback(callback){
@@ -277,16 +306,19 @@ class PromptStream {
             case "Backspace":
                 this.backspacequeue++;
                 return "";
+            case "Delete":
+                this.deletequeue++;
+                return "";
             case "ArrowLeft":
                 this.curoffchange--;
                 return "";
             case "ArrowRight":
                 this.curoffchange++;
                 return "";
-            case "ArrowDown":
+            /*case "ArrowDown": //
                 return "";
-            case "ArrowUp":
-                return "";
+            case "ArrowUp": //
+                return "";*/
             default:
                 this.callback(key);
                 return "";
